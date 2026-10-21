@@ -49,6 +49,15 @@ Supports Linux (including Hyprland, Wayland, and X11), Windows, and macOS.
   - `"Check news"`
 - **Actions**: Opens both `https://github.com/feed` and `https://youtube.com` in your browser, and speaks a brief spoken confirmation.
 
+#### Music Player (Play Any Song)
+- **Trigger words**: Phrases starting with `"play [song name]"`:
+  - `"Play Starboy by The Weeknd"`
+  - `"Play Bohemian Rhapsody"`
+  - `"Play song Hotel California"`
+  - `"Play track Interstellar theme"`
+  - `"Play lofi hip hop on youtube"`
+- **Actions**: Automatically launches and searches for the track on Spotify (or YouTube if specified with "on youtube"), and speaks a confirmation (*"Playing [song], sir."*).
+
 #### Questions & Queries
 - **Trigger words**: Questions starting with or containing:
   - `"what"`, `"what's"`
