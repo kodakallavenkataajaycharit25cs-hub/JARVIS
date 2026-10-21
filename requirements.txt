@@ -1,0 +1,8 @@
+numpy>=1.24,<3
+sounddevice>=0.4.6,<0.6
+elevenlabs>=1.50,<3
+websockets>=13
+python-dotenv>=1.0,<2
+SpeechRecognition>=3.14.0
+audioop-lts>=0.2.0; python_version >= '3.13'
+
