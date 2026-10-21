@@ -657,6 +657,29 @@ def get_next_greeting_phrase() -> str:
     return JARVIS_GREETING_RESPONSES[idx]
 
 
+def format_search_speech(query: str) -> str:
+    """Format a natural speech response naming the subject being searched."""
+    s = query.strip(" ,.:;?!")
+    lower = s.lower()
+    patterns = (
+        r"^(tell me\s+)?(what is an?|what's an?|what are the|what are|what is the|what's the|what is|what's)\s+",
+        r"^(tell me\s+)?(how is the|how's the|how is|how does the|how does)\s+",
+        r"^(tell me\s+)?(who is the|who's the|who is|who's)\s+",
+        r"^(tell me\s+)?(where is the|where's the|where is|where's)\s+",
+        r"^(tell me\s+)?(when is the|when's the|when is|when's)\s+",
+        r"^(tell me\s+)?(why is the|why does the|why is|why does|why's)\s+",
+    )
+    subject = s
+    for pat in patterns:
+        m = re.match(pat, lower)
+        if m:
+            sub = s[m.end():].strip(" ,.:;?!")
+            if sub:
+                subject = sub
+            break
+    return f"Looking up {subject} on the internet, sir."
+
+
 def parse_voice_command(text: str) -> dict | None:
     raw = text.strip()
     if not raw:
@@ -754,7 +777,7 @@ def parse_voice_command(text: str) -> dict | None:
             return {
                 "type": "search",
                 "query": query,
-                "speech": "Looking that up for you, sir.",
+                "speech": format_search_speech(query),
                 "original": raw,
             }
 
@@ -788,7 +811,7 @@ def parse_voice_command(text: str) -> dict | None:
         return {
             "type": "search",
             "query": query,
-            "speech": "Searching Google, sir.",
+            "speech": format_search_speech(query),
             "original": raw,
         }
 
