@@ -639,6 +639,49 @@ def play_any_song(query: str) -> None:
 
 
 # --- Voice Commands & Parsing -----------------------------------------------
+KNOWN_SITES = {
+    "youtube": {
+        "home": "https://www.youtube.com",
+        "search": "https://www.youtube.com/results?search_query=",
+    },
+    "github": {
+        "home": "https://github.com",
+        "search": "https://github.com/search?q=",
+    },
+    "reddit": {
+        "home": "https://www.reddit.com",
+        "search": "https://www.reddit.com/search/?q=",
+    },
+    "google": {
+        "home": "https://www.google.com",
+        "search": "https://www.google.com/search?q=",
+    },
+    "wikipedia": {
+        "home": "https://en.wikipedia.org",
+        "search": "https://en.wikipedia.org/w/index.php?search=",
+    },
+    "twitter": {
+        "home": "https://x.com",
+        "search": "https://x.com/search?q=",
+    },
+    "x": {
+        "home": "https://x.com",
+        "search": "https://x.com/search?q=",
+    },
+    "netflix": {
+        "home": "https://www.netflix.com",
+        "search": "https://www.netflix.com/search?q=",
+    },
+    "twitch": {
+        "home": "https://www.twitch.tv",
+        "search": "https://www.twitch.tv/search?term=",
+    },
+    "amazon": {
+        "home": "https://www.amazon.com",
+        "search": "https://www.amazon.com/s?k=",
+    },
+}
+
 JARVIS_GREETING_RESPONSES = [
     "At your service, sir.",
     "Yes, sir?",
@@ -678,6 +721,47 @@ def format_search_speech(query: str) -> str:
                 subject = sub
             break
     return f"Looking up {subject} on the internet, sir."
+
+
+SITE_DISPLAY_NAMES = {
+    "youtube": "YouTube",
+    "github": "GitHub",
+    "reddit": "Reddit",
+    "google": "Google",
+    "wikipedia": "Wikipedia",
+    "twitter": "X",
+    "x": "X",
+    "spotify": "Spotify",
+    "netflix": "Netflix",
+    "twitch": "Twitch",
+    "amazon": "Amazon",
+    "stackoverflow": "Stack Overflow",
+}
+_last_pull_up_index = -1
+
+
+def get_pull_up_speech(site: str, query: str | None = None) -> str:
+    """Generate dynamic, natural acknowledgment phrases for pull-up commands."""
+    global _last_pull_up_index
+    site_title = SITE_DISPLAY_NAMES.get(site.lower(), site.capitalize())
+
+    options = [
+        "Coming right up, sir.",
+        "Right away, sir.",
+        "Pulling that up for you right away, sir.",
+        f"On it, sir. Opening {site_title} now.",
+        "Loading that for you now, sir.",
+    ]
+    if query:
+        options.append(f"Searching {site_title} for {query} right away, sir.")
+        options.append(f"Pulling up {query} on {site_title}, sir.")
+
+    available = [
+        i for i in range(len(options)) if i != _last_pull_up_index or len(options) == 1
+    ]
+    idx = random.choice(available)
+    _last_pull_up_index = idx
+    return options[idx]
 
 
 def parse_voice_command(text: str) -> dict | None:
@@ -744,7 +828,121 @@ def parse_voice_command(text: str) -> dict | None:
             "original": raw,
         }
 
-    # 3. Play song command: "play [song]"
+    # 3. Site-Specific Commands (YouTube, GitHub, Reddit, etc.)
+    # Pattern A: "... on/in <site>" (e.g. "search machine learning on youtube", "play lofi on youtube", "look up linux on reddit")
+    for site_key in KNOWN_SITES:
+        for prep in (" on ", " in "):
+            marker = prep + site_key
+            if cleaned_lower.endswith(marker):
+                before = raw_cleaned[: len(raw_cleaned) - len(marker)].strip(" ,.:;?!")
+                sub_query = before
+                for trigger in (
+                    "search for",
+                    "search or play",
+                    "search",
+                    "play",
+                    "look up",
+                    "find",
+                    "check for",
+                    "check",
+                    "open",
+                    "pull up",
+                ):
+                    if before.lower().startswith(trigger + " "):
+                        sub_query = before[len(trigger):].strip(" ,.:;?!")
+                        break
+                if site_key == "spotify" and sub_query:
+                    return {
+                        "type": "play_song",
+                        "song": sub_query,
+                        "speech": get_pull_up_speech(site_key, sub_query),
+                        "original": raw,
+                    }
+                site_info = KNOWN_SITES[site_key]
+                target_url = (
+                    site_info["search"] + urllib.parse.quote_plus(sub_query)
+                    if sub_query
+                    else site_info["home"]
+                )
+                return {
+                    "type": "open_url",
+                    "url": target_url,
+                    "speech": get_pull_up_speech(site_key, sub_query),
+                    "original": raw,
+                }
+
+    # Pattern B: "search/check <site> for <query>" or "search/check on <site> <query>"
+    for site_key in KNOWN_SITES:
+        site_search_m = re.match(
+            r"^(search|look in|check|find)\s+(on\s+|in\s+)?(" + site_key + r")(\s+(for|about))?\s+(.+)$",
+            cleaned_lower,
+        )
+        if site_search_m:
+            sub_query = site_search_m.group(6).strip(" ,.:;?!")
+            site_info = KNOWN_SITES[site_key]
+            target_url = site_info["search"] + urllib.parse.quote_plus(sub_query)
+            return {
+                "type": "open_url",
+                "url": target_url,
+                "speech": get_pull_up_speech(site_key, sub_query),
+                "original": raw,
+            }
+
+    # Pattern C: "pull up / open / go to <site> (and search/play/check <query>)?"
+    pull_up_match = re.match(
+        r"^(pull up|open up|open|go to|launch)\s+([a-zA-Z0-9\.\-]+)(\s+(and\s+)?(search for|search or play|search|play|look for|find|check for|check|about)?\s*(.+))?$",
+        cleaned_lower,
+    )
+    if pull_up_match:
+        site_raw = pull_up_match.group(2).lower()
+        sub_query = pull_up_match.group(6)
+        if sub_query:
+            sub_query = sub_query.strip(" ,.:;?!")
+            if sub_query.startswith("for "):
+                sub_query = sub_query[4:].strip(" ,.:;?!")
+
+        # If Spotify play
+        if site_raw == "spotify" and sub_query:
+            return {
+                "type": "play_song",
+                "song": sub_query,
+                "speech": get_pull_up_speech(site_raw, sub_query),
+                "original": raw,
+            }
+
+        site_info = KNOWN_SITES.get(site_raw)
+        if site_info:
+            target_url = (
+                site_info["search"] + urllib.parse.quote_plus(sub_query)
+                if sub_query
+                else site_info["home"]
+            )
+            return {
+                "type": "open_url",
+                "url": target_url,
+                "speech": get_pull_up_speech(site_raw, sub_query),
+                "original": raw,
+            }
+
+        if "." in site_raw or site_raw in ("netflix", "twitch", "amazon", "stackoverflow"):
+            base_url = (
+                f"https://{site_raw}.com"
+                if "." not in site_raw
+                else (f"https://{site_raw}" if not site_raw.startswith("http") else site_raw)
+            )
+            target_url = (
+                f"https://www.google.com/search?q=site%3A{site_raw}+{urllib.parse.quote_plus(sub_query)}"
+                if sub_query
+                else base_url
+            )
+            return {
+                "type": "open_url",
+                "url": target_url,
+                "speech": get_pull_up_speech(site_raw, sub_query),
+                "original": raw,
+            }
+
+    # 4. Play song command: "play [song]"
     if cleaned_lower.startswith("play "):
         song = raw_cleaned[len("play "):].strip(" ,.:;?!")
         for pfx in ("song ", "track "):
@@ -834,6 +1032,12 @@ def handle_voice_command(text: str) -> bool:
 
     if cmd_type == "news":
         open_in_browser(parsed["urls"])
+        if parsed.get("speech"):
+            speak_phrase(parsed["speech"])
+        return True
+
+    if cmd_type == "open_url":
+        open_in_browser(parsed["url"])
         if parsed.get("speech"):
             speak_phrase(parsed["speech"])
         return True

@@ -49,6 +49,17 @@ Supports Linux (including Hyprland, Wayland, and X11), Windows, and macOS.
   - `"Check news"`
 - **Actions**: Opens both `https://github.com/feed` and `https://youtube.com` in your browser, and speaks a brief spoken confirmation.
 
+#### Pull Up & Video Launcher
+- **Trigger words**: Phrases starting with `"pull up [website/service] and search/play [topic]"` or `"pull up [website]"`:
+  - `"Pull up youtube and search machine learning tutorial"`
+  - `"Pull up youtube and play lofi hip hop"`
+  - `"Pull up github and search jarvis"`
+  - `"Pull up reddit and search linux gaming"`
+  - `"Pull up google and search weather in Tokyo"`
+  - `"Pull up youtube"`
+  - `"Pull up netflix"`
+- **Actions**: Automatically launches the requested platform or queries the specific video/topic in your browser, and dynamically acknowledges out loud with natural, varied responses (e.g. *"Coming right up, sir."*, *"Searching YouTube for [topic] right away, sir."*, *"Pulling that up for you right away, sir."*, *"On it, sir. Opening [site] now."*).
+
 #### Music Player (Play Any Song)
 - **Trigger words**: Phrases starting with `"play [song name]"`:
   - `"Play Starboy by The Weeknd"`
